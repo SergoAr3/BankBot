@@ -1,10 +1,19 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
-async def get_menu_button() -> InlineKeyboardButton:
-    menu_button = InlineKeyboardButton(text='Главное меню 📖', callback_data='menu')
+async def get_menu_button() -> InlineKeyboardMarkup:
+    menu_button_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text='Главное меню 📖', callback_data='menu')
 
-    return menu_button
+            ],
+
+        ],
+        resize_keyboard=True
+    )
+
+    return menu_button_kb
 
 
 async def get_back_menu_button() -> InlineKeyboardButton:
@@ -13,18 +22,35 @@ async def get_back_menu_button() -> InlineKeyboardButton:
     return back_menu_kb
 
 
-async def get_one_button_kb(button: InlineKeyboardButton) -> InlineKeyboardMarkup:
-    one_button_kb = InlineKeyboardMarkup(
+async def get_cancel_button() -> InlineKeyboardMarkup:
+    cancel_button_kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                button
+                InlineKeyboardButton(text='Отмена ❌', callback_data='cancel')
             ],
 
         ],
         resize_keyboard=True
     )
 
-    return one_button_kb
+    return cancel_button_kb
+
+
+async def get_start_kb() -> InlineKeyboardMarkup:
+    start_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text='Главное меню 📖', callback_data='menu')
+            ],
+            [
+                InlineKeyboardButton(text='Каналы 📄', callback_data='channels')
+            ],
+
+        ],
+        resize_keyboard=True
+    )
+
+    return start_kb
 
 
 async def get_menu_kb() -> InlineKeyboardMarkup:
@@ -96,3 +122,20 @@ def get_deposit_kb():
     )
 
     return deposit_kb
+
+
+async def get_transfer_confirm_kb():
+    confirm_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text='Подтвердить ✅', callback_data='confirm')
+            ],
+            [
+                InlineKeyboardButton(text='Отмена ❌', callback_data='cancel_transfer')
+            ],
+
+        ],
+        resize_keyboard=True
+    )
+
+    return confirm_kb

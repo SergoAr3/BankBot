@@ -1,4 +1,5 @@
 from os import getenv
+import enum
 
 from dotenv import load_dotenv
 from sqlalchemy import BigInteger, String, ForeignKey, Numeric, DateTime, Boolean, Enum
@@ -16,21 +17,22 @@ async_session = async_sessionmaker(engine)
 class Base(AsyncAttrs, DeclarativeBase):
     pass
 
-class TransactionType(str, Enum):
+class TransactionType(str, enum.Enum):
     PURCHASE = "purchase"
     CREDIT = "credit"
     DEPOSIT = "deposit"
     SUBSCRIPTION = "subscription"
+    TRANSFER = 'transfer'
 
 class Transaction(Base):
     __tablename__ = "transactions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"))
     amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     type: Mapped[TransactionType] = mapped_column(Enum(TransactionType), nullable=False)
-    description: Mapped[str] = mapped_column(String(255), nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    description: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now())
 
     user: Mapped["User"] = relationship("User", back_populates="transactions")
 
@@ -41,12 +43,11 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     telegram_user_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     username: Mapped[str] = mapped_column(String(64))
-    balance: Mapped[float] = mapped_column(Numeric(10, 2))
+    balance: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
 
     credits: Mapped[list["Credit"]] = relationship("Credit", back_populates="user", lazy="selectin")
     deposits: Mapped[list["Deposit"]] = relationship("Deposit", back_populates="user", lazy="selectin")
-    channel_subscriptions: Mapped[list["ChannelSubscription"]] = relationship("ChannelSubscription",
-                                                                           back_populates="user", lazy="selectin")
+    channel_subscriptions: Mapped[list["ChannelSubscription"]] = relationship("ChannelSubscription", back_populates="user", lazy="selectin")
     transactions: Mapped[list["Transaction"]] = relationship("Transaction", back_populates="user", lazy="selectin")
 
 
@@ -83,7 +84,7 @@ class Channel(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(60), nullable=False)
 
-    channel_subscription: Mapped[list["ChannelSubscription"]] = relationship("ChannelSubscription",
+    channel_subscriptions: Mapped[list["ChannelSubscription"]] = relationship("ChannelSubscription",
                                                                              back_populates="channel", lazy="selectin")
 
 
@@ -95,6 +96,6 @@ class ChannelSubscription(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     subscription: Mapped[bool] = mapped_column(Boolean)
 
-    user: Mapped["User"] = relationship("User", back_populates="channel_subscription", lazy="selectin")
-    channel: Mapped["Channel"] = relationship("Channel", back_populates="channel_subscription", lazy="selectin")
+    user: Mapped["User"] = relationship("User", back_populates="channel_subscriptions", lazy="selectin")
+    channel: Mapped["Channel"] = relationship("Channel", back_populates="channel_subscriptions", lazy="selectin")
 

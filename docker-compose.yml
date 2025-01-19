@@ -2,12 +2,12 @@ version: '3.7'
 services:
   db:
     image: postgres:latest
-    container_name: cas_bot_db
+    container_name: bank_bot_db
     env_file:
       - .env
     restart: on-failure
     ports:
-      - "3333:5432"
+      - "3334:5432"
 
   app:
     build: .

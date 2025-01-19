@@ -1,6 +1,6 @@
 aiogram==3.17.0
 python-dotenv~=1.0.1
-SQLAlchemy==2.0.30
+SQLAlchemy==2.0.37
 alembic==1.13.1
 black==24.4.2
 asyncpg==0.29.0
