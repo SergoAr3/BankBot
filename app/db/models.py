@@ -17,12 +17,14 @@ async_session = async_sessionmaker(engine)
 class Base(AsyncAttrs, DeclarativeBase):
     pass
 
+
 class TransactionType(str, enum.Enum):
     PURCHASE = "purchase"
     CREDIT = "credit"
     DEPOSIT = "deposit"
     SUBSCRIPTION = "subscription"
     TRANSFER = 'transfer'
+
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -47,10 +49,10 @@ class User(Base):
 
     credits: Mapped[list["Credit"]] = relationship("Credit", back_populates="user", lazy="selectin")
     deposits: Mapped[list["Deposit"]] = relationship("Deposit", back_populates="user", lazy="selectin")
-    channel_subscriptions: Mapped[list["ChannelSubscription"]] = relationship("ChannelSubscription", back_populates="user", lazy="selectin")
+    channel_subscriptions: Mapped[list["ChannelSubscription"]] = relationship("ChannelSubscription",
+                                                                              back_populates="user", lazy="selectin")
     transactions: Mapped[list["Transaction"]] = relationship("Transaction", back_populates="user", lazy="selectin")
-
-
+    cats: Mapped[list["UserCat"]] = relationship("UserCat", back_populates="user", lazy="selectin")
 
 class Credit(Base):
     __tablename__ = "credits"
@@ -79,23 +81,44 @@ class Deposit(Base):
 
 
 class Channel(Base):
-    __tablename__ = "channels"
+    __tablename__ = "channels_guide"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(60), nullable=False)
+    url: Mapped[str] = mapped_column(String(255), nullable=False)
 
     channel_subscriptions: Mapped[list["ChannelSubscription"]] = relationship("ChannelSubscription",
-                                                                             back_populates="channel", lazy="selectin")
+                                                                              back_populates="channel", lazy="selectin")
 
 
 class ChannelSubscription(Base):
     __tablename__ = "channel_subscriptions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    channel_id: Mapped[int] = mapped_column(ForeignKey("channels.id", ondelete="CASCADE"), index=True)
+    channel_id: Mapped[int] = mapped_column(ForeignKey("channels_guide.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     subscription: Mapped[bool] = mapped_column(Boolean)
 
     user: Mapped["User"] = relationship("User", back_populates="channel_subscriptions", lazy="selectin")
     channel: Mapped["Channel"] = relationship("Channel", back_populates="channel_subscriptions", lazy="selectin")
 
+
+class CatImage(Base):
+    __tablename__ = "cat_images_guide"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    url: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    purchases: Mapped[list["UserCat"]] = relationship("UserCat", back_populates="cat_image", lazy="selectin")
+
+
+class UserCat(Base):
+    __tablename__ = "user_cats"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    cat_image_id: Mapped[int] = mapped_column(ForeignKey("cat_images_guide.id"), index=True)
+    bought_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now())
+
+    user: Mapped["User"] = relationship("User", back_populates="cats", lazy="selectin")
+    cat_image: Mapped["CatImage"] = relationship("CatImage", back_populates="purchases", lazy="selectin")

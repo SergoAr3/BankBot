@@ -2,13 +2,14 @@ from dotenv import load_dotenv
 
 import app.db.requests as rq
 import app.constans.messages as msg
+import app.constans.prices as prise
 from app.utils.states import Transfer
 from app.db.models import TransactionType
 
 from aiogram import Bot, Router
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 
 import app.keyboards.inline_keyboards as kb
 
@@ -20,12 +21,16 @@ router = Router()
 async def start(message: Message):
     username = message.from_user.username
     user_id = message.from_user.id
-    chat_id = message.chat.id
     start_kb = await kb.get_start_kb()
 
     await rq.add_user(username, user_id)
     await message.answer(msg.WELCOME_MESSAGE, reply_markup=start_kb)
 
+
+@router.message(Command('menu'))
+async def menu(message: Message):
+    menu_kb = await kb.get_menu_kb()
+    main_menu_message = await message.answer(msg.MAIN_MENU_MESSAGE, reply_markup=menu_kb)
 
 @router.callback_query(lambda query: query.data == 'menu')
 async def menu_callback(callback_query: CallbackQuery):
@@ -111,19 +116,19 @@ async def transfer_username(message: Message, state: FSMContext):
     )
 
 
-@router.callback_query(lambda query: query.data in ['confirm', 'cancel_transfer'])
+@router.callback_query(lambda query: query.data in ['confirm_transfer', 'cancel_transfer'])
 async def transfer_confirm(callback_query: CallbackQuery, state: FSMContext):
-    menu_kb = await kb.get_menu_button()
+    menu_kb = await kb.get_menu_kb()
     if callback_query.data == "cancel_transfer":
         await callback_query.message.edit_text(msg.TRANSFER_CANCEL_MESSAGE, reply_markup=menu_kb)
         return
 
-    data = await state.get_data()
-    amount = int(data.get("amount"))
+    transfer_data = await state.get_data()
+    amount = int(transfer_data.get("amount"))
     sender_username = callback_query.from_user.username
-    recipient_tg_id = data.get("recipient_id")
-    recipient_id = await rq.get_user_id(recipient_tg_id)
+    recipient_tg_id = transfer_data.get("recipient_id")
     sender_tg_id = callback_query.from_user.id
+    recipient_id = await rq.get_user_id(recipient_tg_id)
     sender_id = await rq.get_user_id(sender_tg_id)
 
     await rq.transfer(sender_tg_id, recipient_tg_id, amount)
@@ -141,9 +146,45 @@ async def transfer_confirm(callback_query: CallbackQuery, state: FSMContext):
     await state.clear()
 
 
+@router.callback_query(lambda query: query.data == 'buy_cat')
+async def buy_cat_callback(callback_query: CallbackQuery):
+    buy_cat_kb = await kb.get_buy_cat_kb()
+    await callback_query.message.answer(msg.BUY_CAT_MESSAGE, reply_markup=buy_cat_kb)
+
+
+@router.callback_query(lambda query: query.data == 'confirm_buy_cat')
+async def confirm_buy_cat_callback(callback_query: CallbackQuery):
+    tg_user_id = callback_query.from_user.id
+    user_id = await rq.get_user_id(tg_user_id=tg_user_id)
+    user_balance = await rq.get_user_balance(tg_user_id)
+    menu_button = await kb.get_menu_button()
+    if user_balance < prise.CAT_IMAGE:
+        await callback_query.message.answer(msg.BUY_CAT_ERROR_MESSAGE, reply_markup=menu_button)
+        return
+
+    image = await rq.get_image(tg_user_id)
+    await rq.reduce_user_balance(tg_user_id, prise.CAT_IMAGE)
+    await rq.add_transaction(user_id, prise.CAT_IMAGE, TransactionType.PURCHASE)
+    await rq.add_cat_buying_info(user_id, image.id)
+    await callback_query.message.answer_photo(photo=image.url, caption=msg.BUY_CAT_SUCCESSFUL_MESSAGE, reply_markup=menu_button
+                                              )
+    await callback_query.message.bot.delete_message(
+        chat_id=callback_query.message.chat.id,
+        message_id=callback_query.message.message_id,
+    )
+
+
+@router.callback_query(lambda query: query.data == 'back')
+async def back_callback(callback_query: CallbackQuery, state: FSMContext):
+    menu_kb = await kb.get_menu_kb()
+    chat_id = callback_query.from_user.id
+    main_menu_message = await callback_query.message.edit_text(msg.MAIN_MENU_MESSAGE, reply_markup=menu_kb)
+    await callback_query.message.bot.delete_message(chat_id=chat_id, message_id=main_menu_message.message_id - 1)
+
+    await state.clear()
+
 @router.callback_query(lambda query: query.data == 'cancel')
-async def menu_callback(callback_query: CallbackQuery, state: FSMContext):
+async def cancel_callback(callback_query: CallbackQuery, state: FSMContext):
     menu_kb = await kb.get_menu_kb()
     await callback_query.message.edit_text(msg.MAIN_MENU_MESSAGE, reply_markup=menu_kb)
-    await callback_query.message.delete()
     await state.clear()

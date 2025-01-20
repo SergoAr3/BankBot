@@ -4,6 +4,7 @@ from aiogram.types import BotCommand, BotCommandScopeDefault, BotCommandScopeAll
 
 async def set_commands(bot: Bot):
     commands = [
+        BotCommand(command="menu", description="Главное меню"),
         BotCommand(command="balance", description="Узнать баланс"),
         BotCommand(command="transfer", description="Перевести монеты"),
         BotCommand(command="buy_cat", description="Купить котика"),

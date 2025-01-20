@@ -1,7 +1,10 @@
+import random
+
 from app.db.models import async_session
-from app.db.models import User, Transaction, TransactionType
-from sqlalchemy import select
+from app.db.models import User, Transaction, TransactionType, CatImage, UserCat
+from sqlalchemy import select, func
 from loguru import logger
+import asyncio
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -119,3 +122,64 @@ async def add_transaction(user_id: int, amount: int, type: TransactionType, desc
         except  SQLAlchemyError as e:
             await session.rollback()
             logger.error(f"Ошибка при записи транзакции: {e}")
+
+
+async def get_image_number(tg_user_id: int, session):
+    async with session:
+        try:
+
+            image_count = await session.scalar(select(func.count(CatImage.id)))
+
+            image_numbers = list(range(1, image_count))
+
+
+            user_purchased_images = await session.scalars(select(UserCat.cat_image_id)
+                                    .select_from(CatImage)
+                                    .join(UserCat, CatImage.id == UserCat.cat_image_id)
+                                    .join(User, UserCat.user_id == User.id)
+                                    .where(User.telegram_user_id == tg_user_id)
+                                    )
+
+            user_purchased_images = set(user_purchased_images.all())
+
+            user_available_images = [num for num in image_numbers if num not in user_purchased_images]
+
+            if user_available_images:
+                image_id = random.choice(user_available_images)
+
+            return image_id
+        except  SQLAlchemyError as e:
+            await session.rollback()
+            logger.error(f"Ошибка при записи транзакции: {e}")
+
+async def get_image(tg_user_id: int):
+    async with async_session() as session:
+        try:
+            image_id = await get_image_number(tg_user_id, session)
+
+            image = await session.scalar(select(CatImage).where(CatImage.id == image_id))
+
+
+            return image
+        except  SQLAlchemyError as e:
+            await session.rollback()
+            logger.error(f"Ошибка при записи транзакции: {e}")
+
+async def add_cat_buying_info(user_id: int, cat_image_id: int):
+    async with async_session() as session:
+        session.add(UserCat(user_id=user_id, cat_image_id=cat_image_id))
+        await session.commit()
+
+
+async def reduce_user_balance(tg_user_id: int, amount: int):
+    async with async_session() as session:
+        user = await session.execute(
+            select(User).where(User.telegram_user_id == tg_user_id)
+        )
+
+        user = user.scalar_one_or_none()
+
+        user.balance -= amount
+        await session.commit()
+
+

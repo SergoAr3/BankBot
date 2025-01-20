@@ -128,10 +128,27 @@ async def get_transfer_confirm_kb():
     confirm_kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text='Подтвердить ✅', callback_data='confirm')
+                InlineKeyboardButton(text='Подтвердить ✅', callback_data='confirm_transfer')
             ],
             [
                 InlineKeyboardButton(text='Отмена ❌', callback_data='cancel_transfer')
+            ],
+
+        ],
+        resize_keyboard=True
+    )
+
+    return confirm_kb
+
+
+async def get_buy_cat_kb():
+    confirm_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text='Подтвердить ✅', callback_data='confirm_buy_cat')
+            ],
+            [
+                InlineKeyboardButton(text='Назад ⏪', callback_data='back')
             ],
 
         ],
