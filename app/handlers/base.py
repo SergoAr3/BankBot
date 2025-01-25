@@ -1,3 +1,4 @@
+from aiogram.enums import ChatMemberStatus
 from dotenv import load_dotenv
 
 import app.db.requests as rq
@@ -30,7 +31,8 @@ async def start(message: Message):
 @router.message(Command('menu'))
 async def menu(message: Message):
     menu_kb = await kb.get_menu_kb()
-    main_menu_message = await message.answer(msg.MAIN_MENU_MESSAGE, reply_markup=menu_kb)
+    await message.answer(msg.MAIN_MENU_MESSAGE, reply_markup=menu_kb)
+
 
 @router.callback_query(lambda query: query.data == 'menu')
 async def menu_callback(callback_query: CallbackQuery):
@@ -163,15 +165,58 @@ async def confirm_buy_cat_callback(callback_query: CallbackQuery):
         return
 
     image = await rq.get_image(tg_user_id)
-    await rq.reduce_user_balance(tg_user_id, prise.CAT_IMAGE)
+    await rq.change_user_balance(tg_user_id, -prise.CAT_IMAGE)
     await rq.add_transaction(user_id, prise.CAT_IMAGE, TransactionType.PURCHASE)
     await rq.add_cat_buying_info(user_id, image.id)
-    await callback_query.message.answer_photo(photo=image.url, caption=msg.BUY_CAT_SUCCESSFUL_MESSAGE, reply_markup=menu_button
+    await callback_query.message.answer_photo(photo=image.url, caption=msg.BUY_CAT_SUCCESSFUL_MESSAGE,
+                                              reply_markup=menu_button
                                               )
     await callback_query.message.bot.delete_message(
         chat_id=callback_query.message.chat.id,
         message_id=callback_query.message.message_id,
     )
+
+
+@router.callback_query(lambda query: query.data == 'credit')
+async def confirm_buy_cat_callback(callback_query: CallbackQuery):
+    credit_kb = await kb.get_credit_kb()
+    await callback_query.message.answer(msg.GET_CREDIT_MESSAGE, reply_markup=credit_kb)
+
+
+@router.callback_query(lambda query: query.data == 'channels')
+async def back_callback(callback_query: CallbackQuery):
+    check_subscriptions_button = await kb.get_check_subscriptions_button()
+    user_tg_id = callback_query.from_user.id
+    channels = await rq.get_channels(user_tg_id)
+    channels_list = '\n'.join(
+        [f"{rank}. <a href='{channel.url}'>{channel.name}</a>" for rank, channel in enumerate(channels, start=1)])
+
+    if channels_list:
+        await callback_query.message.answer(msg.CHANNELS.format(channels_list), reply_markup=check_subscriptions_button)
+    else:
+        await callback_query.message.answer(msg.CHANNELS_0)
+
+
+@router.callback_query(lambda query: query.data == 'check_subscriptions')
+async def back_callback(callback_query: CallbackQuery):
+    tg_user_id = callback_query.from_user.id
+    user_id = await rq.get_user_id(tg_user_id=tg_user_id)
+    channels = await rq.get_channels(tg_user_id)
+    count_subscribed_channels = 0
+
+    for channel in channels:
+        member = await callback_query.bot.get_chat_member(chat_id=channel.username, user_id=tg_user_id)
+        if member.status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR, ChatMemberStatus.CREATOR]:
+            count_subscribed_channels += 1
+            await rq.add_channel_subscription_info(user_id=user_id, channel_id=channel.id)
+
+    if count_subscribed_channels > 0:
+        amount = 100 * count_subscribed_channels
+        await callback_query.message.edit_text(
+            msg.CHECK_SUBSCRIPTIONS.format(count_subscribed_channels, amount))
+        await rq.change_user_balance(tg_user_id, amount)
+    else:
+        await callback_query.message.edit_text(msg.CHECK_SUBSCRIPTIONS_0)
 
 
 @router.callback_query(lambda query: query.data == 'back')
@@ -182,6 +227,7 @@ async def back_callback(callback_query: CallbackQuery, state: FSMContext):
     await callback_query.message.bot.delete_message(chat_id=chat_id, message_id=main_menu_message.message_id - 1)
 
     await state.clear()
+
 
 @router.callback_query(lambda query: query.data == 'cancel')
 async def cancel_callback(callback_query: CallbackQuery, state: FSMContext):

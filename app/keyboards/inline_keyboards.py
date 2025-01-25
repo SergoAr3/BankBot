@@ -42,10 +42,6 @@ async def get_start_kb() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(text='Главное меню 📖', callback_data='menu')
             ],
-            [
-                InlineKeyboardButton(text='Каналы 📄', callback_data='channels')
-            ],
-
         ],
         resize_keyboard=True
     )
@@ -72,7 +68,7 @@ async def get_menu_kb() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text='Вклад 📈', callback_data='deposit')
             ],
             [
-                InlineKeyboardButton(text='Подписки на каналы ✅', callback_data='subscriptions')
+                InlineKeyboardButton(text='Подписки на каналы ✅', callback_data='channels')
             ],
 
         ],
@@ -82,8 +78,7 @@ async def get_menu_kb() -> InlineKeyboardMarkup:
     return menu_kb
 
 
-def get_credit_kb():
-    back_menu_button = get_back_menu_button()
+async def get_credit_kb():
     credit_kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -93,7 +88,7 @@ def get_credit_kb():
                 InlineKeyboardButton(text='Мои кредиты 🔎', callback_data='credit_info')
             ],
             [
-                back_menu_button
+                InlineKeyboardButton(text='Назад ⏪', callback_data='back')
             ],
 
         ],
@@ -103,8 +98,7 @@ def get_credit_kb():
     return credit_kb
 
 
-def get_deposit_kb():
-    back_menu_button = get_back_menu_button()
+async def get_deposit_kb():
     deposit_kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -114,7 +108,7 @@ def get_deposit_kb():
                 InlineKeyboardButton(text='Мои вклады 🔎', callback_data='credit_info')
             ],
             [
-                back_menu_button
+                InlineKeyboardButton(text='Назад ⏪', callback_data='back')
             ],
 
         ],
@@ -149,6 +143,20 @@ async def get_buy_cat_kb():
             ],
             [
                 InlineKeyboardButton(text='Назад ⏪', callback_data='back')
+            ],
+
+        ],
+        resize_keyboard=True
+    )
+
+    return confirm_kb
+
+
+async def get_check_subscriptions_button():
+    confirm_kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text='Проверить подписки ✔︎', callback_data='check_subscriptions')
             ],
 
         ],

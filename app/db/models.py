@@ -54,6 +54,7 @@ class User(Base):
     transactions: Mapped[list["Transaction"]] = relationship("Transaction", back_populates="user", lazy="selectin")
     cats: Mapped[list["UserCat"]] = relationship("UserCat", back_populates="user", lazy="selectin")
 
+
 class Credit(Base):
     __tablename__ = "credits"
 
@@ -84,7 +85,9 @@ class Channel(Base):
     __tablename__ = "channels_guide"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    telegram_channel_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True, nullable=True)
     name: Mapped[str] = mapped_column(String(60), nullable=False)
+    username: Mapped[str] = mapped_column(String(60), nullable=True)
     url: Mapped[str] = mapped_column(String(255), nullable=False)
 
     channel_subscriptions: Mapped[list["ChannelSubscription"]] = relationship("ChannelSubscription",
@@ -97,7 +100,6 @@ class ChannelSubscription(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     channel_id: Mapped[int] = mapped_column(ForeignKey("channels_guide.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    subscription: Mapped[bool] = mapped_column(Boolean)
 
     user: Mapped["User"] = relationship("User", back_populates="channel_subscriptions", lazy="selectin")
     channel: Mapped["Channel"] = relationship("Channel", back_populates="channel_subscriptions", lazy="selectin")
