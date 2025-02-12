@@ -1,29 +1,14 @@
-from os import getenv
-import enum
-
-from dotenv import load_dotenv
-from sqlalchemy import BigInteger, String, ForeignKey, Numeric, DateTime, Boolean, Enum
-
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncAttrs
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 import datetime
 
-load_dotenv()
-engine = create_async_engine(getenv('DATABASE_URL'))
+from sqlalchemy import BigInteger, String, ForeignKey, Numeric, DateTime, Enum, Boolean
+from sqlalchemy.ext.asyncio import AsyncAttrs
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-async_session = async_sessionmaker(engine)
+from .model_types import TransactionType, CreditJobType
 
 
 class Base(AsyncAttrs, DeclarativeBase):
     pass
-
-
-class TransactionType(str, enum.Enum):
-    PURCHASE = "purchase"
-    CREDIT = "credit"
-    DEPOSIT = "deposit"
-    SUBSCRIPTION = "subscription"
-    TRANSFER = 'transfer'
 
 
 class Transaction(Base):
@@ -36,23 +21,34 @@ class Transaction(Base):
     description: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now())
 
-    user: Mapped["User"] = relationship("User", back_populates="transactions")
+
+
+class ScheduledCreditJob(Base):
+    __tablename__ = "scheduled_credit_jobs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    apscheduler_job_id: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
+    credit_id: Mapped[int] = mapped_column(ForeignKey("credits.id", ondelete="CASCADE"))
+    type: Mapped[str] = mapped_column(Enum(CreditJobType), nullable=False)
+    run_time: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+
+
+class ScheduledDepositJob(Base):
+    __tablename__ = "scheduled_deposit_jobs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    apscheduler_job_id: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)
+    deposit_id: Mapped[int] = mapped_column(ForeignKey("deposits.id", ondelete="CASCADE"))
+    run_time: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    telegram_user_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     username: Mapped[str] = mapped_column(String(64))
     balance: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
-
-    credits: Mapped[list["Credit"]] = relationship("Credit", back_populates="user", lazy="selectin")
-    deposits: Mapped[list["Deposit"]] = relationship("Deposit", back_populates="user", lazy="selectin")
-    channel_subscriptions: Mapped[list["ChannelSubscription"]] = relationship("ChannelSubscription",
-                                                                              back_populates="user", lazy="selectin")
-    transactions: Mapped[list["Transaction"]] = relationship("Transaction", back_populates="user", lazy="selectin")
-    cats: Mapped[list["UserCat"]] = relationship("UserCat", back_populates="user", lazy="selectin")
+    blocking: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Credit(Base):
@@ -60,11 +56,11 @@ class Credit(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    amount: Mapped[int] = mapped_column(nullable=False)
-    term: Mapped[int] = mapped_column(nullable=False)
+    amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    term: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
     percent: Mapped[int] = mapped_column(nullable=False)
-
-    user: Mapped["User"] = relationship("User", back_populates="credits", lazy="selectin")
+    remaining_debt: Mapped[float] = mapped_column(nullable=False, default=0)
+    closed: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Deposit(Base):
@@ -72,13 +68,11 @@ class Deposit(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    amount: Mapped[int] = mapped_column(nullable=False)
-    term: Mapped[int] = mapped_column(nullable=False)
+    amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     percent: Mapped[int] = mapped_column(nullable=False)
-    payment_date: Mapped[datetime.datetime] = mapped_column(DateTime)
-    payment_amount: Mapped[int] = mapped_column(nullable=False)
-
-    user: Mapped["User"] = relationship("User", back_populates="deposits", lazy="selectin")
+    payment_date: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+    payment_amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    completed: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class Channel(Base):
@@ -87,11 +81,7 @@ class Channel(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     telegram_channel_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True, nullable=True)
     name: Mapped[str] = mapped_column(String(60), nullable=False)
-    username: Mapped[str] = mapped_column(String(60), nullable=True)
     url: Mapped[str] = mapped_column(String(255), nullable=False)
-
-    channel_subscriptions: Mapped[list["ChannelSubscription"]] = relationship("ChannelSubscription",
-                                                                              back_populates="channel", lazy="selectin")
 
 
 class ChannelSubscription(Base):
@@ -101,17 +91,12 @@ class ChannelSubscription(Base):
     channel_id: Mapped[int] = mapped_column(ForeignKey("channels_guide.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
 
-    user: Mapped["User"] = relationship("User", back_populates="channel_subscriptions", lazy="selectin")
-    channel: Mapped["Channel"] = relationship("Channel", back_populates="channel_subscriptions", lazy="selectin")
-
 
 class CatImage(Base):
     __tablename__ = "cat_images_guide"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     url: Mapped[str] = mapped_column(String(255), nullable=False)
-
-    purchases: Mapped[list["UserCat"]] = relationship("UserCat", back_populates="cat_image", lazy="selectin")
 
 
 class UserCat(Base):
@@ -121,6 +106,3 @@ class UserCat(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     cat_image_id: Mapped[int] = mapped_column(ForeignKey("cat_images_guide.id"), index=True)
     bought_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now())
-
-    user: Mapped["User"] = relationship("User", back_populates="cats", lazy="selectin")
-    cat_image: Mapped["CatImage"] = relationship("CatImage", back_populates="purchases", lazy="selectin")

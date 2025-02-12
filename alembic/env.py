@@ -7,12 +7,10 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.db.models import Base
 
-from os import getenv
-from dotenv import load_dotenv
+from config import DataBaseConfig
 
 from alembic import context
 
-load_dotenv()
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -22,7 +20,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option('sqlalchemy.url', getenv('DATABASE_URL'))
+config.set_main_option('sqlalchemy.url', DataBaseConfig.get_connection())
 
 # add your model's MetaData object here
 # for 'autogenerate' support
