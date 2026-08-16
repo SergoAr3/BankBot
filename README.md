@@ -102,3 +102,233 @@ BankBot/
 ├── Makefile
 ├── requirements.txt
 └── alembic.ini
+---
+
+## 🚀 Запуск проекта
+
+### 1. Клонирование репозитория
+
+```bash
+git clone https://github.com/SergoAr3/BankBot.git
+cd BankBot
+```
+
+### 2. Настройка переменных окружения
+
+Создайте файл `.env` в корне проекта:
+
+```env
+BOT_TOKEN=your_telegram_bot_token
+
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_password
+POSTGRES_DB=bank_bot
+
+DB_HOST=db
+DB_PORT=5432
+
+REDIS_HOST=redis
+REDIS_PORT=6379
+```
+
+Токен Telegram-бота можно получить через [@BotFather](https://t.me/BotFather).
+
+> Не добавляйте `.env` и токен Telegram-бота в репозиторий.
+
+---
+
+## 🐳 Запуск через Docker
+
+Самый простой способ запустить проект — использовать Docker Compose.
+
+```bash
+docker compose up --build
+```
+
+Будут запущены:
+
+- Telegram-бот;
+- PostgreSQL;
+- Redis.
+
+Перед запуском приложения контейнер автоматически применяет миграции Alembic.
+
+Запуск в фоновом режиме:
+
+```bash
+docker compose up -d --build
+```
+
+Остановка контейнеров:
+
+```bash
+docker compose down
+```
+
+---
+
+## 💻 Локальный запуск
+
+### 1. Создание виртуального окружения
+
+```bash
+python -m venv venv
+```
+
+Linux / macOS:
+
+```bash
+source venv/bin/activate
+```
+
+Windows:
+
+```bash
+venv\Scripts\activate
+```
+
+### 2. Установка зависимостей
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Настройка PostgreSQL и Redis
+
+Если сервисы запущены локально, укажите в `.env`:
+
+```env
+DB_HOST=localhost
+DB_PORT=5432
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+```
+
+### 4. Применение миграций
+
+```bash
+alembic upgrade head
+```
+
+или:
+
+```bash
+make migrate
+```
+
+### 5. Запуск бота
+
+```bash
+python main.py
+```
+
+---
+
+## 🗄 Миграции базы данных
+
+Для работы с миграциями используется **Alembic**.
+
+Создание новой миграции:
+
+```bash
+make migration NAME="migration_name"
+```
+
+Применение всех миграций:
+
+```bash
+make migrate
+```
+
+Эквивалентная команда Alembic:
+
+```bash
+alembic upgrade head
+```
+
+---
+
+## 🔄 Как запускается приложение
+
+При старте `main.py`:
+
+```text
+main.py
+   │
+   ├── создается AsyncIOScheduler
+   ├── подключаются routers
+   ├── регистрируются middlewares
+   ├── устанавливаются команды Telegram-бота
+   ├── запускается scheduler
+   └── запускается aiogram long polling
+```
+
+Основные пользовательские сценарии:
+
+```text
+Пользователь
+ │
+ ├── Баланс
+ ├── Переводы
+ ├── Вклады
+ ├── Кредиты
+ ├── Награды за подписки
+ └── Покупки
+```
+
+---
+
+## 🔐 Переменные окружения
+
+| Переменная | Описание |
+|---|---|
+| `BOT_TOKEN` | Токен Telegram Bot API |
+| `POSTGRES_USER` | Пользователь PostgreSQL |
+| `POSTGRES_PASSWORD` | Пароль PostgreSQL |
+| `POSTGRES_DB` | Имя базы данных PostgreSQL |
+| `DB_HOST` | Хост PostgreSQL |
+| `DB_PORT` | Порт PostgreSQL |
+| `REDIS_HOST` | Хост Redis |
+| `REDIS_PORT` | Порт Redis |
+
+---
+
+## 🧹 Качество кода
+
+В проекте используются инструменты форматирования и статического анализа:
+
+```bash
+black .
+isort .
+flake8 .
+```
+
+Установка pre-commit hooks:
+
+```bash
+pre-commit install
+```
+
+Запуск всех pre-commit проверок вручную:
+
+```bash
+pre-commit run --all-files
+```
+
+---
+
+## 📌 Что можно улучшить
+
+Возможные направления дальнейшего развития:
+
+- интерфейс истории транзакций;
+- административная панель;
+- автоматические тесты;
+- CI/CD через GitHub Actions;
+- настройка финансовых продуктов через конфигурацию;
+- улучшение атомарности денежных операций;
+- статистика и аналитика;
+- структурированная конфигурация приложения;
+- production-ready мониторинг и обработка ошибок.
+  
